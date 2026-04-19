@@ -8,9 +8,9 @@ import time
 from datetime import datetime, timezone
 
 # ── Configuração ──────────────────────────────────────────────────────────────
-
-SUPABASE_URL = "https://hjfkglnszaqqgupjouec.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhqZmtnbG5zemFxcWd1cGpvdWVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2MTk2MTYsImV4cCI6MjA5MjE5NTYxNn0.Iy-qLv-sOGSrE2zNTzyfUBWy_rOgTo5o4U8LYgsWmzs"
+import os
+SUPABASE_URL = os.environ["SUPABASE_URL"]
+SUPABASE_KEY = os.environ["SUPABASE_KEY"]
 
 MENOR_PRECO_BASE = "https://menorpreco.notaparana.pr.gov.br"
 
