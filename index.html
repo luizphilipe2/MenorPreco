@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PriceWatch · Menor Preço PR</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap');
+
+:root {
+  --bg:      #09090b;
+  --bg2:     #111113;
+  --bg3:     #1c1c1f;
+  --bg4:     #242428;
+  --border:  #27272a;
+  --border2: #3f3f46;
+  --text:    #fafafa;
+  --text2:   #a1a1aa;
+  --text3:   #52525b;
+  --green:   #00ff87;
+  --green2:  #00c968;
+  --red:     #ff4466;
+  --yellow:  #ffd60a;
+  --blue:    #3b82f6;
+  --mono:    'JetBrains Mono', monospace;
+  --display: 'Syne', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--display);
+  font-size: 14px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Noise overlay ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Header ── */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  height: 60px;
+  background: rgba(9,9,11,0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+}
+
+.logo {
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.logo span { color: var(--green); }
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.last-update {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text3);
+}
+
+.live-dot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text2);
+}
+.live-dot::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: pulse 2s ease infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ── Main layout ── */
+main {
+  position: relative;
+  z-index: 1;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 40px 32px;
+}
+
+/* ── Section title ── */
+.section-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 16px;
+  font-family: var(--mono);
+}
+
+/* ── Stats row ── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 40px;
+}
+
+.stat-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 24px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.stat-card:hover { border-color: var(--border2); }
+.stat-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--green), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.stat-card:hover::after { opacity: 0.5; }
+
+.stat-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+.stat-val {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.stat-val.green { color: var(--green); }
+.stat-sub {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text3);
+}
+
+/* ── Grid 2 col ── */
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+/* ── Cards ── */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+}
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+.card-meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+}
+
+.card-body { padding: 20px 22px; }
+
+/* ── Produto selector ── */
+.produto-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text2);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tab:hover { border-color: var(--border2); color: var(--text); }
+.tab.active {
+  background: var(--green);
+  border-color: var(--green);
+  color: #000;
+  font-weight: 500;
+}
+
+/* ── Chart ── */
+.chart-wrap {
+  position: relative;
+  height: 260px;
+  padding: 20px 22px;
+}
+
+/* ── Tabela de preços ── */
+.price-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.price-table th {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-align: left;
+  padding: 0 12px 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.price-table td {
+  padding: 10px 12px 10px 0;
+  font-size: 13px;
+  color: var(--text2);
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.price-table tr:last-child td { border-bottom: none; }
+.price-table td.val {
+  font-family: var(--mono);
+  font-weight: 500;
+  color: var(--text);
+}
+.price-table td.val.best { color: var(--green); }
+.price-table td.val.worst { color: var(--red); }
+.price-table td.store { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.price-table td.when { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+
+/* Badge */
+.badge {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.badge.best { background: rgba(0,255,135,0.12); color: var(--green); }
+.badge.worst { background: rgba(255,68,102,0.12); color: var(--red); }
+
+/* ── Rankings ── */
+.ranking-list { list-style: none; }
+.ranking-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.ranking-item:last-child { border-bottom: none; }
+.ranking-num {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text3);
+  width: 20px;
+  flex-shrink: 0;
+  text-align: center;
+}
+.ranking-info { flex: 1; min-width: 0; }
+.ranking-name {
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+.ranking-sub {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+}
+.ranking-val {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--green);
+  white-space: nowrap;
+}
+
+/* ── Log ── */
+.log-list { list-style: none; }
+.log-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.log-item:last-child { border-bottom: none; }
+.log-time { color: var(--text3); white-space: nowrap; }
+.log-badge {
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.log-badge.ok  { background: rgba(0,255,135,0.1); color: var(--green); }
+.log-badge.err { background: rgba(255,68,102,0.1); color: var(--red); }
+.log-desc { color: var(--text2); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.log-new { color: var(--green); margin-left: auto; white-space: nowrap; }
+
+/* ── Empty / loading ── */
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 180px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text3);
+}
+
+@keyframes shimmer {
+  0% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+  100% { opacity: 0.3; }
+}
+.loading { animation: shimmer 1.2s ease infinite; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .grid-2 { grid-template-columns: 1fr; }
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  main { padding: 24px 16px; }
+  header { padding: 0 16px; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">price<span>watch</span>.pr</div>
+  <div class="header-right">
+    <div class="last-update" id="last-update">carregando...</div>
+    <div class="live-dot">ao vivo</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- Stats -->
+  <div class="section-title">visão geral</div>
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">produtos rastreados</div>
+      <div class="stat-val green" id="s-produtos">—</div>
+      <div class="stat-sub">GTINs distintos</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">registros coletados</div>
+      <div class="stat-val" id="s-registros">—</div>
+      <div class="stat-sub">total histórico</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">última coleta</div>
+      <div class="stat-val" id="s-coleta" style="font-size:20px">—</div>
+      <div class="stat-sub" id="s-coleta-sub">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">estabelecimentos</div>
+      <div class="stat-val" id="s-estab">—</div>
+      <div class="stat-sub">com vendas registradas</div>
+    </div>
+  </div>
+
+  <!-- Gráfico + Últimas vendas -->
+  <div class="section-title">histórico de preços</div>
+  <div class="card" style="margin-bottom:20px">
+    <div class="produto-tabs" id="produto-tabs">
+      <div class="placeholder loading">carregando produtos...</div>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="chart-historico"></canvas>
+    </div>
+  </div>
+
+  <div class="grid-2">
+
+    <!-- Últimas vendas -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">últimas vendas</div>
+        <div class="card-meta" id="vendas-meta">—</div>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div id="tabela-vendas" class="placeholder loading">carregando...</div>
+      </div>
+    </div>
+
+    <!-- Ranking de lojas -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">melhores preços por loja</div>
+        <div class="card-meta" id="ranking-meta">produto selecionado</div>
+      </div>
+      <div class="card-body" style="padding: 4px 22px">
+        <ul class="ranking-list" id="ranking-lojas">
+          <div class="placeholder loading">carregando...</div>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Log de execuções -->
+  <div class="section-title" style="margin-top:20px">log de coletas</div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">execuções recentes</div>
+      <div class="card-meta">GitHub Actions · a cada hora</div>
+    </div>
+    <div class="card-body" style="padding: 4px 22px">
+      <ul class="log-list" id="log-list">
+        <div class="placeholder loading">carregando...</div>
+      </ul>
+    </div>
+  </div>
+
+</main>
+
+<script>
+const SUPABASE_URL = 'https://hjfkglnszaqqgupjouec.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhqZmtnbG5zemFxcWd1cGpvdWVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2MTk2MTYsImV4cCI6MjA5MjE5NTYxNn0.Iy-qLv-sOGSrE2zNTzyfUBWy_rOgTo5o4U8LYgsWmzs';
+
+const HEADERS = {
+  'apikey': SUPABASE_KEY,
+  'Authorization': `Bearer ${SUPABASE_KEY}`,
+};
+
+let chartInstance = null;
+let produtoAtivo  = null;
+let todosProdutos = [];
+
+// ── API ───────────────────────────────────────────────────────────────────────
+
+async function query(table, params = '') {
+  const resp = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, { headers: HEADERS });
+  if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+  return resp.json();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+async function init() {
+  await Promise.all([
+    carregarStats(),
+    carregarProdutos(),
+    carregarLog(),
+  ]);
+  document.getElementById('last-update').textContent =
+    'atualizado ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+
+async function carregarStats() {
+  try {
+    const [produtos, precos, estabs, logs] = await Promise.all([
+      query('produtos', 'select=gtin'),
+      query('precos', 'select=id'),
+      query('estabelecimentos', 'select=codigo'),
+      query('logs_coleta', 'select=*&order=executado_em.desc&limit=1'),
+    ]);
+
+    document.getElementById('s-produtos').textContent   = produtos.length;
+    document.getElementById('s-registros').textContent  = precos.length;
+    document.getElementById('s-estab').textContent      = estabs.length;
+
+    if (logs.length) {
+      const log = logs[0];
+      const dt  = new Date(log.executado_em);
+      document.getElementById('s-coleta').textContent     = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      document.getElementById('s-coleta-sub').textContent = dt.toLocaleDateString('pt-BR');
+    }
+  } catch(e) {
+    console.error('Erro stats:', e);
+  }
+}
+
+// ── Produtos ──────────────────────────────────────────────────────────────────
+
+async function carregarProdutos() {
+  try {
+    todosProdutos = await query('produtos', 'select=gtin,descricao&order=descricao');
+
+    const tabs = document.getElementById('produto-tabs');
+    tabs.innerHTML = '';
+
+    if (!todosProdutos.length) {
+      tabs.innerHTML = '<div class="placeholder">nenhum produto ainda</div>';
+      return;
+    }
+
+    for (const p of todosProdutos) {
+      const btn = document.createElement('button');
+      btn.className = 'tab';
+      btn.textContent = p.descricao;
+      btn.title = p.gtin;
+      btn.onclick = () => selecionarProduto(p.gtin, p.descricao);
+      tabs.appendChild(btn);
+    }
+
+    // Seleciona o primeiro
+    selecionarProduto(todosProdutos[0].gtin, todosProdutos[0].descricao);
+  } catch(e) {
+    console.error('Erro produtos:', e);
+  }
+}
+
+async function selecionarProduto(gtin, desc) {
+  produtoAtivo = gtin;
+
+  // Atualiza tabs
+  document.querySelectorAll('.tab').forEach(t => {
+    t.classList.toggle('active', t.title === gtin);
+  });
+
+  document.getElementById('vendas-meta').textContent  = desc.substring(0, 30);
+  document.getElementById('ranking-meta').textContent = desc.substring(0, 30);
+
+  await Promise.all([
+    carregarHistorico(gtin),
+    carregarVendas(gtin),
+    carregarRanking(gtin),
+  ]);
+}
+
+// ── Histórico (gráfico) ───────────────────────────────────────────────────────
+
+async function carregarHistorico(gtin) {
+  try {
+    const dados = await query('precos',
+      `select=valor,datahora_venda,estabelecimento&gtin=eq.${gtin}&order=datahora_venda.asc&limit=200`
+    );
+
+    if (!dados.length) {
+      renderChartVazio();
+      return;
+    }
+
+    // Agrupa por dia + estabelecimento → pega mínimo do dia
+    const porDia = {};
+    for (const d of dados) {
+      const dia = d.datahora_venda.substring(0, 10);
+      if (!porDia[dia] || parseFloat(d.valor) < parseFloat(porDia[dia])) {
+        porDia[dia] = parseFloat(d.valor);
+      }
+    }
+
+    const labels = Object.keys(porDia).map(d =>
+      new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+    );
+    const values = Object.values(porDia);
+
+    renderChart(labels, values);
+  } catch(e) {
+    console.error('Erro histórico:', e);
+  }
+}
+
+function renderChart(labels, values) {
+  const ctx = document.getElementById('chart-historico').getContext('2d');
+  if (chartInstance) chartInstance.destroy();
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        borderColor: '#00ff87',
+        borderWidth: 2,
+        backgroundColor: (ctx) => {
+          const gradient = ctx.chart.ctx.createLinearGradient(0, 0, 0, 260);
+          gradient.addColorStop(0, 'rgba(0,255,135,0.15)');
+          gradient.addColorStop(1, 'rgba(0,255,135,0)');
+          return gradient;
+        },
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: values.map(v =>
+          v === min ? '#00ff87' : v === max ? '#ff4466' : 'transparent'
+        ),
+        pointBorderColor: values.map(v =>
+          v === min ? '#00ff87' : v === max ? '#ff4466' : 'transparent'
+        ),
+        pointRadius: values.map(v => (v === min || v === max) ? 5 : 2),
+        pointHoverRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1c1c1f',
+          borderColor: '#3f3f46',
+          borderWidth: 1,
+          titleColor: '#a1a1aa',
+          bodyColor: '#fafafa',
+          bodyFont: { family: 'JetBrains Mono', size: 13 },
+          callbacks: {
+            label: ctx => `  R$ ${ctx.parsed.y.toFixed(2)}`,
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#52525b', font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 10 },
+          border: { color: '#27272a' },
+        },
+        y: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: {
+            color: '#52525b',
+            font: { family: 'JetBrains Mono', size: 10 },
+            callback: v => 'R$ ' + v.toFixed(2),
+          },
+          border: { color: '#27272a' },
+        }
+      }
+    }
+  });
+}
+
+function renderChartVazio() {
+  const ctx = document.getElementById('chart-historico').getContext('2d');
+  if (chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [] }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+    }
+  });
+}
+
+// ── Últimas vendas ────────────────────────────────────────────────────────────
+
+async function carregarVendas(gtin) {
+  const el = document.getElementById('tabela-vendas');
+  el.className = 'placeholder loading';
+  el.textContent = 'carregando...';
+
+  try {
+    const dados = await query('precos',
+      `select=valor,datahora_venda,estabelecimento(nome_fan,nome_emp,municipio)&gtin=eq.${gtin}&order=datahora_venda.desc&limit=15`
+    );
+
+    if (!dados.length) {
+      el.className = 'placeholder';
+      el.textContent = 'nenhuma venda registrada ainda';
+      return;
+    }
+
+    const vals = dados.map(d => parseFloat(d.valor));
+    const minV = Math.min(...vals);
+    const maxV = Math.max(...vals);
+
+    const rows = dados.map(d => {
+      const v    = parseFloat(d.valor);
+      const loja = d.estabelecimento?.nome_fan || d.estabelecimento?.nome_emp || '?';
+      const dt   = new Date(d.datahora_venda);
+      const when = dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) +
+                   ' ' + dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const cls  = v === minV ? 'best' : v === maxV ? 'worst' : '';
+      const badge = v === minV
+        ? '<span class="badge best">mín</span>'
+        : v === maxV ? '<span class="badge worst">máx</span>' : '';
+
+      return `<tr>
+        <td class="val ${cls}">R$ ${v.toFixed(2)}${badge}</td>
+        <td class="store">${loja}</td>
+        <td class="when">${when}</td>
+      </tr>`;
+    }).join('');
+
+    el.className = '';
+    el.innerHTML = `<table class="price-table" style="padding:0 22px">
+      <thead><tr><th>preço</th><th>estabelecimento</th><th>quando</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  } catch(e) {
+    el.className = 'placeholder';
+    el.textContent = 'erro ao carregar';
+    console.error(e);
+  }
+}
+
+// ── Ranking de lojas ──────────────────────────────────────────────────────────
+
+async function carregarRanking(gtin) {
+  const el = document.getElementById('ranking-lojas');
+  el.innerHTML = '<div class="placeholder loading">carregando...</div>';
+
+  try {
+    const dados = await query('precos',
+      `select=valor,estabelecimento(nome_fan,nome_emp)&gtin=eq.${gtin}&order=valor.asc&limit=100`
+    );
+
+    if (!dados.length) {
+      el.innerHTML = '<div class="placeholder">sem dados</div>';
+      return;
+    }
+
+    // Agrupa por loja, pega o mínimo
+    const lojas = {};
+    for (const d of dados) {
+      const nome = d.estabelecimento?.nome_fan || d.estabelecimento?.nome_emp || '?';
+      const v    = parseFloat(d.valor);
+      if (!lojas[nome] || v < lojas[nome]) lojas[nome] = v;
+    }
+
+    const sorted = Object.entries(lojas).sort((a, b) => a[1] - b[1]).slice(0, 8);
+
+    el.innerHTML = sorted.map(([nome, val], i) => `
+      <li class="ranking-item">
+        <span class="ranking-num">${i + 1}</span>
+        <div class="ranking-info">
+          <div class="ranking-name">${nome}</div>
+          <div class="ranking-sub">menor preço registrado</div>
+        </div>
+        <span class="ranking-val">R$ ${val.toFixed(2)}</span>
+      </li>
+    `).join('');
+  } catch(e) {
+    el.innerHTML = '<div class="placeholder">erro ao carregar</div>';
+    console.error(e);
+  }
+}
+
+// ── Log ───────────────────────────────────────────────────────────────────────
+
+async function carregarLog() {
+  const el = document.getElementById('log-list');
+
+  try {
+    const logs = await query('logs_coleta',
+      'select=*&order=executado_em.desc&limit=20'
+    );
+
+    if (!logs.length) {
+      el.innerHTML = '<div class="placeholder">nenhuma execução registrada</div>';
+      return;
+    }
+
+    el.innerHTML = logs.map(l => {
+      const dt   = new Date(l.executado_em);
+      const when = dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) +
+                   ' ' + dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const novo = l.total_novos > 0 ? `+${l.total_novos} novos` : 'sem novos';
+      return `<li class="log-item">
+        <span class="log-time">${when}</span>
+        <span class="log-badge ${l.sucesso ? 'ok' : 'err'}">${l.sucesso ? 'ok' : 'erro'}</span>
+        <span class="log-desc">${l.termo || '—'}</span>
+        <span class="log-new" style="color:${l.total_novos > 0 ? 'var(--green)' : 'var(--text3)'}">${novo}</span>
+      </li>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<div class="placeholder">erro ao carregar</div>';
+    console.error(e);
+  }
+}
+
+// ── Start ─────────────────────────────────────────────────────────────────────
+init();
+
+// Recarrega a cada 5 minutos
+setInterval(init, 5 * 60 * 1000);
+</script>
+</body>
+</html>
