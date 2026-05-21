@@ -9,11 +9,12 @@ Uso:
 """
 
 import httpx
+import os
 import sys
 import time
 from collections import defaultdict
 
-LOCAL = "6gf96u6q8"  # Cianorte
+LOCAL = os.getenv("LOCAL", "6gf96u6q8")  # padrão: Cianorte
 BASE  = "https://menorpreco.notaparana.pr.gov.br"
 
 HEADERS = {

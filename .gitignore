@@ -1,0 +1,21 @@
+# Claude Code
+.claude/
+
+# Variáveis de ambiente
+.env
+*.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+dist/
+.pytest_cache/
+
+# Node
+node_modules/
+
+# SvelteKit
+frontend/.svelte-kit/
+frontend/build/
